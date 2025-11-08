@@ -9,7 +9,9 @@ from solid2.extensions.bosl2 import screws
 from spkb.switch_plate import (
     mx_plate_with_backplate,
 )
+
 from spkb.board_mount import stm32_blackpill
+from spkb.board_mount import BoardMount
 from spkb.keycaps import sa_double_length
 from spkb.keyswitch import Keyswitch, MX
 from spkb.single_key_pcb import single_key_board
@@ -21,6 +23,16 @@ from .layouts.thumb_well import ThumbWellLayout
 from .mini_din_connector_mount import MiniDINConnectorMount
 from .trackpoint_mount import TrackPointMount
 
+# Custom board mount
+
+CustomBoard = BoardMount(
+    28, #width
+    51, #length
+    1.64, #thickness
+    front_mounting_post_separation=16.5,
+    back_mounting_post_separation=17.5
+)
+
 
 class KeyboardAssembly:
     def __init__(
@@ -31,9 +43,16 @@ class KeyboardAssembly:
         use_color: bool = False,
         socket_shape: Optional[ShapeForLocationCallback] = None,
         keyswitch: Keyswitch = MX(),
+        board_type: str = "stm32",              # "stm32" or "custom"
+        connector_mount_enabled: bool = True,  # Enable Mini-DIN connector
+        magnet_mount_enabled: bool = True      # True = magnets, False = holes
     ):
         self.use_color = use_color
         self.socket_shape = socket_shape
+        self.board_type = board_type
+        self.connector_mount_enabled = connector_mount_enabled
+        self.magnet_mount_enabled = magnet_mount_enabled
+        
 
         self.finger_layout = FingerWellLayout(
             columns=columns,
@@ -48,6 +67,11 @@ class KeyboardAssembly:
 
         self.connector_mount = MiniDINConnectorMount()
         self.trackpoint_mount = TrackPointMount()
+        # Select board mount based on parameter
+        if self.board_type == "custom":
+            self.board_mount = CustomBoard
+        else:
+            self.board_mount = stm32_blackpill
 
         self.screen_size = (27.75, 39.25)
         self.screen_hole_centers = (22.5, 34.05)
@@ -135,7 +159,7 @@ class KeyboardAssembly:
         """Place the given shape at the position and orientation of the Mini-DIN connector mount.
 
         :param shape: the shape to place
-        """
+            """
         return self.finger_layout.key_place(
             0,
             0,
@@ -147,6 +171,7 @@ class KeyboardAssembly:
                 -self.connector_mount.outerRadius() - 2
             ))
         )
+
 
     def transform_trackpoint_mount(self, shape):
         """Place the given shape at the position and orientation of the TrackPoint module.
@@ -324,11 +349,11 @@ class KeyboardAssembly:
             self.finger_layout.place_all(self.switch_socket)
             + self.finger_layout.web_all()
 
-            + self.transform_board(stm32_blackpill.render(distance_from_surface=8))
+            + self.transform_board(self.board_mount.render(distance_from_surface=8))
             + hull()(
                 self.transform_board(
                     cube((60, 120, 8), center=True)
-                    & stm32_blackpill.back_mounting_posts(distance_from_surface=8)
+                    & self.board_mount.back_mounting_posts(distance_from_surface=8)
                 ),
                 self.finger_layout.web_corner(3, 0, left=False, top=True),
                 self.finger_layout.web_corner(3, 0, left=True, top=True),
@@ -336,23 +361,25 @@ class KeyboardAssembly:
             + hull()(
                 self.transform_board(
                     cube((60, 120, 6), center=True)
-                    & stm32_blackpill.front_mounting_posts(distance_from_surface=8)
+                    & self.board_mount.front_mounting_posts(distance_from_surface=8)
                 ),
                 self.finger_layout.web_corner(1, 0, left=True, top=True),
                 self.finger_layout.web_corner(1, 0, left=False, top=True),
             )
-            + self.transform_board(
+        )
+        if self.board_type == "stm32":
+            shape += self.transform_board(
                 hull()(
                     cube((60, 120, 2), center=True)
-                    & stm32_blackpill.back_mounting_posts(distance_from_surface=8),
+                    & self.board_mount.back_mounting_posts(distance_from_surface=8),
                     cube((60, 120, 2), center=True)
-                    & stm32_blackpill.front_mounting_posts(distance_from_surface=8)
+                    & self.board_mount.front_mounting_posts(distance_from_surface=8)
                 )
                 + cube((11, 2.9, 13), center=True)
                 .translate((0, 3 / 2, 13 / 2))
-                - stm32_blackpill.board_profile(distance_from_surface=8)
+                - self.board_mount.board_profile(distance_from_surface=8)
             )
-            - self.transform_board(
+            shape -= self.transform_board(
                 # Holes for buttons on RP2040 TYPE-C 16MB
                 cube((4, 6, 40), center=True)
                 .translate((-5 if self.left_side else 5, -22, 0))
@@ -361,18 +388,38 @@ class KeyboardAssembly:
                 + cube((4, 6, 40), center=True)
                 .translate((6, -46, 0))
             )
+        else: 
+            shape += self.transform_board(
+                hull()(
+                    cube((60, 120, 2), center=True)
+                    & self.board_mount.back_mounting_posts(distance_from_surface=8),
+                    cube((60, 120, 2), center=True)
+                    & self.board_mount.front_mounting_posts(distance_from_surface=8)
+                )
+            )
 
-            + hull() (
+
+        if self.connector_mount_enabled:
+            shape += hull() (
                 self.transform_connector_mount(self.connector_mount.frame()),
                 self.finger_layout.web_corner(0, 0, left=True, top=False),
                 self.finger_layout.web_corner(0, 0, left=True, top=True),
                 self.cover_edge_corner(side=True, column=0, row=1, left=True, top=True, top_shell=True, offset_along_edge=self.bottom_cover_post_size),
                 self.finger_layout.web_corner(column=0, row=1, left=True, top=True),
+             )
+            shape += self.finger_cover_edge(top_shell=True)
+            shape -= self.place_cover_magnets(self.cover_magnet_hole(top_shell=True))
+            shape -= self.transform_connector_mount(self.connector_mount.hole())
+        else:
+            shape += hull() (
+                self.finger_layout.web_corner(0, 0, left=True, top=False),
+                self.finger_layout.web_corner(0, 0, left=True, top=True),
+                self.cover_edge_corner(side=True, column=0, row=0, left=True, top=True, top_shell=True, offset_along_edge=4.4),
+                self.cover_edge_corner(side=True, column=0, row=1, left=True, top=True, top_shell=True, offset_along_edge=self.bottom_cover_post_size),
+                self.finger_layout.web_corner(column=0, row=1, left=True, top=True),
             )
-            + self.finger_cover_edge(top_shell=True)
-            - self.place_cover_magnets(self.cover_magnet_hole(top_shell=True))
-            - self.transform_connector_mount(self.connector_mount.hole())
-        )
+            shape += self.finger_cover_edge(top_shell=True)
+            shape -= self.place_cover_magnets(self.cover_magnet_hole(top_shell=True))
 
         if self.enable_trackpoint and not self.left_side:
             shape += self.transform_trackpoint_mount(self.trackpoint_mount.trackpoint_mount())
@@ -402,12 +449,15 @@ class KeyboardAssembly:
         elif isinstance(sphere_radius, (tuple, list)):
             sphere_radii['r1'], sphere_radii['r2'] = sphere_radius
 
-        shape = (
-            cylinder_outer(radius, self.bottom_cover_magnet_thickness, center=True)
-            .up(self.bottom_cover_magnet_thickness / 2)
-            + (sphere(_fn=16, **sphere_radii) - cube(radius * 2, radius * 2, radius * 2, center=True).down(radius))
-            .up(self.bottom_cover_magnet_thickness)
-        )
+        if self.magnet_mount_enabled:
+            shape = (
+                cylinder_outer(radius, self.bottom_cover_magnet_thickness, center=True)
+                .up(self.bottom_cover_magnet_thickness / 2)
+                + (sphere(_fn=16, **sphere_radii) - cube(radius * 2, radius * 2, radius * 2, center=True).down(radius))
+                .up(self.bottom_cover_magnet_thickness)
+            )
+        else:
+            shape = cylinder_outer(radius, self.bottom_cover_magnet_thickness * 2, center=True).up(self.bottom_cover_magnet_thickness ) #/ 2)
 
         if not top_shell:
             return shape.mirror((0, 0, 1))
@@ -419,56 +469,68 @@ class KeyboardAssembly:
         :param top_shell: whether this is for the top shell (True) or for the bottom cover (False)
         :type top_shell: bool
         """
-        hex_radius = self.bottom_cover_magnet_radius * 0.99
-        hex_chamfer_width = 0.3
-        end_groove_depth = 0.5
-        end_groove_radius = hex_radius + end_groove_depth
-        end_groove_height = 0.5
+        if self.magnet_mount_enabled:
+            hex_radius = self.bottom_cover_magnet_radius * 0.99
+            hex_chamfer_width = 0.3
+            end_groove_depth = 0.5
+            end_groove_radius = hex_radius + end_groove_depth
+            end_groove_height = 0.5
 
-        return (
-            cylinder_outer(  # Top end groove
-                end_groove_radius,
-                end_groove_height,
-                segments=6,
-                center=True,
-            ).up(self.bottom_cover_magnet_thickness - end_groove_height / 2)
-            + cylinder_outer(  # Top end groove chamfer
-                [hex_radius, end_groove_radius],
-                end_groove_depth,
-                segments=6,
-                center=True,
-            ).up(self.bottom_cover_magnet_thickness - end_groove_height - end_groove_depth / 2)
-            + cylinder_outer(  # Top main hole chamfer
-                [hex_radius, hex_radius + hex_chamfer_width],
-                end_groove_depth,
-                segments=6,
-                center=True,
-            ).down(end_groove_depth / 2)
-            + cylinder_outer(  # Main hole
-                hex_radius,
-                self.bottom_cover_magnet_thickness * 2,
-                segments=6,
-                center=True,
+            return (
+                cylinder_outer(  # Top end groove
+                    end_groove_radius,
+                    end_groove_height,
+                    segments=6,
+                    center=True,
+                ).up(self.bottom_cover_magnet_thickness - end_groove_height / 2)
+                + cylinder_outer(  # Top end groove chamfer
+                    [hex_radius, end_groove_radius],
+                    end_groove_depth,
+                    segments=6,
+                    center=True,
+                ).up(self.bottom_cover_magnet_thickness - end_groove_height - end_groove_depth / 2)
+                + cylinder_outer(  # Top main hole chamfer
+                    [hex_radius, hex_radius + hex_chamfer_width],
+                    end_groove_depth,
+                    segments=6,
+                    center=True,
+                ).down(end_groove_depth / 2)
+                + cylinder_outer(  # Main hole
+                    hex_radius,
+                    self.bottom_cover_magnet_thickness * 2,
+                    segments=6,
+                    center=True,
+                )
+                + cylinder_outer(  # Bottom main hole chamfer
+                    [hex_radius + hex_chamfer_width, hex_radius],
+                    end_groove_depth,
+                    segments=6,
+                    center=True,
+                ).up(end_groove_depth / 2)
+                + cylinder_outer(  # Bottom end groove chamfer
+                    [end_groove_radius, hex_radius],
+                    end_groove_depth,
+                    segments=6,
+                    center=True,
+                ).down(self.bottom_cover_magnet_thickness - end_groove_height - end_groove_depth / 2)
+                + cylinder_outer(  # Bottom end groove
+                    end_groove_radius,
+                    end_groove_height,
+                    segments=6,
+                    center=True,
+                ).down(self.bottom_cover_magnet_thickness - end_groove_height / 2)
             )
-            + cylinder_outer(  # Bottom main hole chamfer
-                [hex_radius + hex_chamfer_width, hex_radius],
-                end_groove_depth,
-                segments=6,
-                center=True,
-            ).up(end_groove_depth / 2)
-            + cylinder_outer(  # Bottom end groove chamfer
-                [end_groove_radius, hex_radius],
-                end_groove_depth,
-                segments=6,
-                center=True,
-            ).down(self.bottom_cover_magnet_thickness - end_groove_height - end_groove_depth / 2)
-            + cylinder_outer(  # Bottom end groove
-                end_groove_radius,
-                end_groove_height,
-                segments=6,
-                center=True,
-            ).down(self.bottom_cover_magnet_thickness - end_groove_height / 2)
-        )
+        else:
+            clearance_radius = 2.7 / 2  # M2.5 screw clearance
+            hole_depth = self.bottom_cover_magnet_thickness * 6  # Full depth through both parts
+
+            hole = cylinder_outer(
+            clearance_radius,
+            hole_depth,
+            center=True
+            ).up(self.bottom_cover_magnet_thickness  / 2)
+
+            return hole
 
     def place_cover_magnets(self, shape):
         """Place the given shape at the location of each cover attachment magnet.
@@ -711,7 +773,7 @@ class KeyboardAssembly:
                     self.finger_layout.web_corner(column=0, row=0, left=False, top=True, **web_kwargs),
                 ),
                 (
-                    self.cover_edge_corner(side=False, column=0, row=0, left=True, top=True, top_shell=top_shell, offset_along_edge=3 if top_shell else 0),
+                    self.cover_edge_corner(side=False, column=0, row=0, left=True, top=True, top_shell=top_shell, offset_along_edge=(3 if top_shell else (0 if self.connector_mount_enabled else 3)) ),
                     self.finger_layout.web_corner(column=0, row=0, left=True, top=True, **web_kwargs),
                 ),
             ),
@@ -742,45 +804,70 @@ class KeyboardAssembly:
         """
         web_kwargs = self.bottom_cover_web_kwargs()
 
-        return (
-            self.finger_layout.place_all(self.switch_bottom_cover)
-            + self.finger_layout.web_all(**web_kwargs)
-            + hull()(
-                self.transform_connector_mount(
-                    cylinder_outer(self.connector_mount.outerRadius(), 10 + self.bottom_cover_thickness, center=True)
-                    .down((10 + self.bottom_cover_thickness) / 2 + 0.3)
+        if self.connector_mount_enabled:
+            return (
+                self.finger_layout.place_all(self.switch_bottom_cover)
+                + self.finger_layout.web_all(**web_kwargs)
+                + hull()(
+                    self.transform_connector_mount(
+                        cylinder_outer(self.connector_mount.outerRadius(), 10 + self.bottom_cover_thickness, center=True)
+                        .down((10 + self.bottom_cover_thickness) / 2 + 0.3)
+                    )
+                    - self.finger_layout.key_place(
+                        0, 0,
+                        cube(
+                            30,
+                            30,
+                            20,
+                            center=True
+                        ).up(10 - self.bottom_cover_offset)
+                    ),
+                    self.finger_layout.web_corner(column=1, row=0, left=True, top=True, **web_kwargs),
+                    self.finger_layout.web_corner(column=1, row=0, left=True, top=False, **web_kwargs),
+                )
+                + self.finger_cover_edge(top_shell=False)
+                - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
+                - hull()(
+                    self.transform_connector_mount(
+                        cylinder_outer(self.connector_mount.outerRadius() - self.connector_mount.outerFrameWidth, 20, center=True)
+                    ),
+                    self.finger_layout.web_corner(column=1, row=0, left=True, top=True, **web_kwargs),
+                    self.finger_layout.web_corner(column=1, row=0, left=True, top=False, **web_kwargs),
                 )
                 - self.finger_layout.key_place(
-                    0, 0,
+                    2, -1,
                     cube(
+                        60,
+                        37,
                         30,
-                        30,
-                        20,
                         center=True
-                    ).up(10 - self.bottom_cover_offset)
-                ),
-                self.finger_layout.web_corner(column=1, row=0, left=True, top=True, **web_kwargs),
-                self.finger_layout.web_corner(column=1, row=0, left=True, top=False, **web_kwargs),
+                    ).translate((3, 0, 10 - self.bottom_cover_offset))
+                )
             )
-            + self.finger_cover_edge(top_shell=False)
-            - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
-            - hull()(
-                self.transform_connector_mount(
-                    cylinder_outer(self.connector_mount.outerRadius() - self.connector_mount.outerFrameWidth, 20, center=True)
-                ),
-                self.finger_layout.web_corner(column=1, row=0, left=True, top=True, **web_kwargs),
-                self.finger_layout.web_corner(column=1, row=0, left=True, top=False, **web_kwargs),
+        else:
+            return (
+                self.finger_layout.place_all(self.switch_bottom_cover)
+                + self.finger_layout.web_all(**web_kwargs)
+                + hull()(
+                    self.finger_layout.web_corner(column=0, row=0, left=True, top=True, **web_kwargs),
+                    self.cover_edge_corner(side=True, column=0, row=0, left=True, top=True, top_shell=False, offset_along_edge=4.4),
+                    self.finger_layout.web_corner(column=0, row=1, left=True, top=True, **web_kwargs),
+                    self.cover_edge_corner(side=True, column=0, row=1, left=True, top=True, top_shell=False, offset_along_edge=0),
+                )
+                + self.finger_cover_edge(top_shell=False)
+                - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
+                - hull()(
+                )
+                - self.finger_layout.key_place(
+                    2, -1,
+                    cube(
+                        60,
+                        37,
+                        30,
+                        center=True
+                    ).translate((3, 0, 10 - self.bottom_cover_offset))
+                )
             )
-            - self.finger_layout.key_place(
-                2, -1,
-                cube(
-                    60,
-                    37,
-                    30,
-                    center=True
-                ).translate((3, 0, 10 - self.bottom_cover_offset))
-            )
-        )
 
     def finger_bottom_cover_nuts(self):
         """Generate tenting nuts for M6 bolts to union with the bottom cover.

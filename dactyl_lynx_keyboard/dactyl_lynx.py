@@ -95,6 +95,86 @@ lynx_layout = {
 
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description="Build a Dactyl Lynx keyboard model.")
+    parser.add_argument(
+        "finger_columns",
+        metavar="COLS",
+        type=int,
+        default=6,
+        nargs="?",
+        help="the number of columns in the finger well",
+    )
+    parser.add_argument(
+        "finger_rows",
+        metavar="ROWS",
+        type=int,
+        default=5,
+        nargs="?",
+        help="the number of rows in the finger well",
+    )
+    parser.add_argument(
+        "--with-keycaps",
+        action="store_true",
+        default=False,
+        dest="show_keycaps",
+        help="render keycaps (default: don't render keycaps)",
+    )
+    parser.add_argument(
+        "--without-keycaps",
+        action="store_false",
+        dest="show_keycaps",
+        help="don't render keycaps",
+    )
+    parser.add_argument(
+        "--with-sockets",
+        action="store_true",
+        default=True,
+        dest="show_sockets",
+        help="render keyswitch sockets",
+    )
+    parser.add_argument(
+        "--without-sockets",
+        action="store_false",
+        dest="show_sockets",
+        help="don't render keyswitch sockets (default: render sockets)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        type=str,
+        default=None,
+        help="the name of the file to write to",
+    )
+ 
+    parser.add_argument(
+        "--board-type",
+        choices=["stm32", "custom"],
+        default="stm32",
+        help="Specify the board type (stm32 or custom). Default: stm32",
+    )
+
+    parser.add_argument(
+        "--no-connector-mount",
+        action="store_false",
+        dest="connector_mount_enabled",
+        default=True,
+        help="Disable Mini-DIN connector mount (default: enabled)",
+    )
+
+    parser.add_argument(
+        "--no-magnet-mount",
+        action="store_false",
+        dest="magnet_mount_enabled",
+        default=True,
+        help="Disable magnet mounts (default: enabled)",
+    )
+
+
+    args = parser.parse_args()
+
+
     # Dimensions of single-key PCB
     board_dimensions = Offset2D(19.15, 19.15)
 
@@ -106,8 +186,8 @@ if __name__ == "__main__":
         HoleDef(-8, -8, 0.5),
     ]
 
-    #keyswitch_type: Keyswitch = MX()
-    keyswitch_type: Keyswitch = MX.with_board(board_dimensions, *board_screw_positions)
+    keyswitch_type: Keyswitch = MX()
+    #keyswitch_type: Keyswitch = MX.with_board(board_dimensions, *board_screw_positions)
     #keyswitch_type: Keyswitch = Choc()
     #keyswitch_type: Keyswitch = Choc.with_board(board_dimensions, *board_screw_positions)
 
@@ -121,11 +201,15 @@ if __name__ == "__main__":
         )
 
     assembly = KeyboardAssembly(
-        columns=6,
-        rows=5,
+        columns=args.finger_columns,
+        rows=args.finger_rows,
         use_1_5u_keys=False,
         use_color=False,
         keyswitch=keyswitch_type,
+        board_type=args.board_type,
+        connector_mount_enabled=args.connector_mount_enabled,
+        magnet_mount_enabled=args.magnet_mount_enabled,
+
 
         # The default, if `socket_shape` is omitted: Basic sockets without a backplate; also use this if using
         # single-key PCBs.
@@ -464,60 +548,6 @@ if __name__ == "__main__":
     sys.exit(0)
 #######
 
-    parser = argparse.ArgumentParser(description="Build a Dactyl Lynx keyboard model.")
-    parser.add_argument(
-        "finger_columns",
-        metavar="COLS",
-        type=int,
-        default=6,
-        nargs="?",
-        help="the number of columns in the finger well",
-    )
-    parser.add_argument(
-        "finger_rows",
-        metavar="ROWS",
-        type=int,
-        default=5,
-        nargs="?",
-        help="the number of rows in the finger well",
-    )
-    parser.add_argument(
-        "--with-keycaps",
-        action="store_true",
-        default=False,
-        dest="show_keycaps",
-        help="render keycaps (default: don't render keycaps)",
-    )
-    parser.add_argument(
-        "--without-keycaps",
-        action="store_false",
-        dest="show_keycaps",
-        help="don't render keycaps",
-    )
-    parser.add_argument(
-        "--with-sockets",
-        action="store_true",
-        default=True,
-        dest="show_sockets",
-        help="render keyswitch sockets",
-    )
-    parser.add_argument(
-        "--without-sockets",
-        action="store_false",
-        dest="show_sockets",
-        help="don't render keyswitch sockets (default: render sockets)",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        metavar="FILE",
-        type=str,
-        default=None,
-        help="the name of the file to write to",
-    )
-
-    args = parser.parse_args()
-
     def build_filepath():
         return join(
             dirname(dirname(dirname(abspath(__file__)))),
@@ -535,6 +565,7 @@ if __name__ == "__main__":
         finger_columns=args.finger_columns,
         finger_rows=args.finger_rows,
     )
+    
 
     print(f"Writing output to {filepath} . . .")
     (
