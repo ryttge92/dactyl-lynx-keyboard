@@ -15,6 +15,93 @@ from .layouts.layout import Layout
 from .lcd_mount import LCDMount
 from .assembly import KeyboardAssembly
 
+parser = argparse.ArgumentParser(description="Build a Dactyl Lynx keyboard model.")
+parser.add_argument(
+    "finger_columns",
+    metavar="COLS",
+    type=int,
+    default=6,
+    nargs="?",
+    help="the number of columns in the finger well",
+)
+parser.add_argument(
+    "finger_rows",
+    metavar="ROWS",
+    type=int,
+    default=5,
+    nargs="?",
+    help="the number of rows in the finger well",
+)
+parser.add_argument(
+    "--with-keycaps",
+    action="store_true",
+    default=False,
+    dest="show_keycaps",
+    help="render keycaps (default: don't render keycaps)",
+)
+parser.add_argument(
+    "--without-keycaps",
+    action="store_false",
+    dest="show_keycaps",
+    help="don't render keycaps",
+)
+parser.add_argument(
+    "--with-sockets",
+    action="store_true",
+    default=True,
+    dest="show_sockets",
+    help="render keyswitch sockets",
+)
+parser.add_argument(
+    "--without-sockets",
+    action="store_false",
+    dest="show_sockets",
+    help="don't render keyswitch sockets (default: render sockets)",
+)
+parser.add_argument(
+    "-o",
+    "--output",
+    metavar="FILE",
+    type=str,
+    default=None,
+    help="the name of the file to write to",
+)
+
+parser.add_argument(
+    "--board-type",
+    choices=["stm32", "custom"],
+    default="stm32",
+    help="Specify the board type (stm32 or custom). Default: stm32",
+)
+
+parser.add_argument(
+    "--no-connector-mount",
+    action="store_false",
+    dest="connector_mount_enabled",
+    default=True,
+    help="Disable Mini-DIN connector mount (default: enabled)",
+)
+
+parser.add_argument(
+    "--no-magnet-mount",
+    action="store_false",
+    dest="magnet_mount_enabled",
+    default=True,
+    help="Disable magnet mounts (default: enabled)",
+)
+
+parser.add_argument(
+    "--ninekey",
+    action="store_true",
+    dest="nine_key_enabled",
+    default=False,
+    help="Enable 9-key thumb cluster (default: 8-key)",
+)
+
+
+args = parser.parse_args()
+
+nine_key_enabled = args.nine_key_enabled
 
 # matrix_coords[left_side][thumb][column][row]
 matrix_coords = {
@@ -27,11 +114,21 @@ matrix_coords = {
             ['4,0', '4,1', '4,2', '4,3', '4,4'],
             ['5,0', '5,1', '5,2', '5,3', '5,4'],
         ],
-        True: {  # thumb well
-            2: { -1: '0,5', 0: '1,5', 1: '2,5' },
-            1: { -1: '3,5', 0: '4,5', 1: '5,5' },
-            0: { -1: '0,6', 0.5: '1,6' },
-        },
+        
+            True: (
+                {  # thumb well
+                    2: { -1: '0,5', 0: '1,5', 1: '2,5' },
+                    1: { -1: '3,5', 0: '4,5', 1: '5,5' },
+                    0: { -1: '0,6', 0: '1,6', 1: '2.6' },
+                }
+                if nine_key_enabled else
+                {  # thumb well
+                    2: { -1: '0,5', 0: '1,5', 1: '2,5' },
+                    1: { -1: '3,5', 0: '4,5', 1: '5,5' },
+                    0: { -1: '0,6', 0.5: '1,6' },
+                }
+            )
+
     },
     True: {  # left side
         False: [  # finger well (column-major, which means that this looks sideways in the code)
@@ -42,14 +139,21 @@ matrix_coords = {
             ['1,0', '1,1', '1,2', '1,3', '2,4'],
             ['0,0', '0,1', '0,2', '0,3', '1,4'],
         ],
-        True: {  # thumb well
+        True: (
+            {  # thumb well
+            2: { 1: '0,5', 0: '1,5', -1: '2,5' },
+            1: { 1: '3,5', 0: '4,5', -1: '5,5' },
+            0: { 1: '0,6', 0: '1.6', -1: '2,6' },
+            } 
+            if nine_key_enabled else
+            {  # thumb well
             2: { 1: '0,5', 0: '1,5', -1: '2,5' },
             1: { 1: '3,5', 0: '4,5', -1: '5,5' },
             0: { 0.5: '0,6', -1: '1,6' },
-        },
+            } 
+        )
     },
 }
-
 
 command_legend = '⌘'
 delete_legend = '⌦'
@@ -69,12 +173,20 @@ lynx_layout = {
             ['9', 'R', 'N', 'V', '↑'],
             ['0', 'L', 'S', 'Z', '→'],
             ['\\', '/', '-', shift_legend, command_legend],
-        ],
-        True: {  # thumb well
+        ],    
+        True: (
+            {  # thumb well
+            2: { -1: command_legend, 0: 'Alt', 1: 'Ctrl' },
+            1: { -1: 'Fn', 0: enter_legend, 1: shift_legend },
+            0: { -1: 'A', 0: 'B', 1: 'C' },
+            } 
+            if nine_key_enabled else
+            {  # thumb well
             2: { -1: command_legend, 0: 'Alt', 1: 'Ctrl' },
             1: { -1: 'Fn', 0: enter_legend, 1: shift_legend },
             0: { -1: 'NOP', 0.5: '' },
-        },
+            } 
+        )
     },
     True: {  # left side
         False: [  # finger well (column-major, which means that this looks sideways in the code)
@@ -85,96 +197,24 @@ lynx_layout = {
             ['1', '\'', 'A', ';', '`'],
             ['Menu', tab_legend, esc_legend, shift_legend, 'Ctrl'],
         ],
-        True: {  # thumb well
+        True: (
+            {  # thumb well
+            2: { 1: 'Ctrl', 0: 'Alt', -1: command_legend },
+            1: { 1: shift_legend, 0: delete_legend, -1: 'Fn' },
+            0: { -1: 'A', 0: 'B', 1: 'C' },
+            }
+            if nine_key_enabled else
+            {  # thumb well
             2: { 1: 'Ctrl', 0: 'Alt', -1: command_legend },
             1: { 1: shift_legend, 0: delete_legend, -1: 'Fn' },
             0: { 0.5: backspace_legend, -1: 'NOP' },
-        },
+            }
+        )
     },
 }
 
-
 if __name__ == "__main__":
     
-    parser = argparse.ArgumentParser(description="Build a Dactyl Lynx keyboard model.")
-    parser.add_argument(
-        "finger_columns",
-        metavar="COLS",
-        type=int,
-        default=6,
-        nargs="?",
-        help="the number of columns in the finger well",
-    )
-    parser.add_argument(
-        "finger_rows",
-        metavar="ROWS",
-        type=int,
-        default=5,
-        nargs="?",
-        help="the number of rows in the finger well",
-    )
-    parser.add_argument(
-        "--with-keycaps",
-        action="store_true",
-        default=False,
-        dest="show_keycaps",
-        help="render keycaps (default: don't render keycaps)",
-    )
-    parser.add_argument(
-        "--without-keycaps",
-        action="store_false",
-        dest="show_keycaps",
-        help="don't render keycaps",
-    )
-    parser.add_argument(
-        "--with-sockets",
-        action="store_true",
-        default=True,
-        dest="show_sockets",
-        help="render keyswitch sockets",
-    )
-    parser.add_argument(
-        "--without-sockets",
-        action="store_false",
-        dest="show_sockets",
-        help="don't render keyswitch sockets (default: render sockets)",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        metavar="FILE",
-        type=str,
-        default=None,
-        help="the name of the file to write to",
-    )
- 
-    parser.add_argument(
-        "--board-type",
-        choices=["stm32", "custom"],
-        default="stm32",
-        help="Specify the board type (stm32 or custom). Default: stm32",
-    )
-
-    parser.add_argument(
-        "--no-connector-mount",
-        action="store_false",
-        dest="connector_mount_enabled",
-        default=True,
-        help="Disable Mini-DIN connector mount (default: enabled)",
-    )
-
-    parser.add_argument(
-        "--no-magnet-mount",
-        action="store_false",
-        dest="magnet_mount_enabled",
-        default=True,
-        help="Disable magnet mounts (default: enabled)",
-    )
-
-
-    args = parser.parse_args()
-
-
     # Dimensions of single-key PCB
     board_dimensions = Offset2D(19.15, 19.15)
 
@@ -209,7 +249,7 @@ if __name__ == "__main__":
         board_type=args.board_type,
         connector_mount_enabled=args.connector_mount_enabled,
         magnet_mount_enabled=args.magnet_mount_enabled,
-
+        nine_key_enabled=args.nine_key_enabled,
 
         # The default, if `socket_shape` is omitted: Basic sockets without a backplate; also use this if using
         # single-key PCBs.

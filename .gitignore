@@ -7,3 +7,6 @@
 .lein-*
 
 /target
+__pycache__/
+layouts/__pycache__/
+things/

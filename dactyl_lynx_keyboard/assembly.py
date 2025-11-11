@@ -20,6 +20,7 @@ from spkb.utils import cylinder_outer, fudge_radius, nothing
 from .layouts.layout import ShapeForLocationCallback
 from .layouts.finger_well import FingerWellLayout
 from .layouts.thumb_well import ThumbWellLayout
+from .layouts.thumb_well import ThumbWellLayout9key
 from .mini_din_connector_mount import MiniDINConnectorMount
 from .trackpoint_mount import TrackPointMount
 
@@ -45,14 +46,15 @@ class KeyboardAssembly:
         keyswitch: Keyswitch = MX(),
         board_type: str = "stm32",              # "stm32" or "custom"
         connector_mount_enabled: bool = True,  # Enable Mini-DIN connector
-        magnet_mount_enabled: bool = True      # True = magnets, False = holes
+        magnet_mount_enabled: bool = True,      # True = magnets, False = holes
+        nine_key_enabled: bool = False               # True = 9 key thumb cluster false = 8 key
     ):
         self.use_color = use_color
         self.socket_shape = socket_shape
         self.board_type = board_type
         self.connector_mount_enabled = connector_mount_enabled
         self.magnet_mount_enabled = magnet_mount_enabled
-        
+        self.nine_key_enabled = nine_key_enabled
 
         self.finger_layout = FingerWellLayout(
             columns=columns,
@@ -60,7 +62,11 @@ class KeyboardAssembly:
             use_1_5u_keys=use_1_5u_keys,
             keyswitch=keyswitch,
         )
-        self.thumb_layout = ThumbWellLayout(keyswitch=keyswitch)
+
+        if self.nine_key_enabled:
+            self.thumb_layout = ThumbWellLayout9key(keyswitch=keyswitch)
+        else:
+            self.thumb_layout = ThumbWellLayout(keyswitch=keyswitch)
 
         if socket_shape is None:
             self.socket_shape = lambda _column, _row: self.finger_layout.keyswitch.plate()
