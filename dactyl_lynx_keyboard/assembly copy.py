@@ -19,7 +19,9 @@ from spkb.utils import cylinder_outer, fudge_radius, nothing
 
 from .layouts.layout import ShapeForLocationCallback
 from .layouts.finger_well import FingerWellLayout
-from .layouts.thumb_well import ThumbWellLayout, ThumbWellLayout9key, ThumbWellLayout11key, ThumbWellLayout12key
+from .layouts.thumb_well import ThumbWellLayout
+from .layouts.thumb_well import ThumbWellLayout9key
+from .layouts.thumb_well import ThumbWellLayout12key
 from .mini_din_connector_mount import MiniDINConnectorMount
 from .trackpoint_mount import TrackPointMount
 
@@ -47,7 +49,6 @@ class KeyboardAssembly:
         connector_mount_enabled: bool = True,  # Enable Mini-DIN connector
         magnet_mount_enabled: bool = True,      # True = magnets, False = holes
         nine_key_enabled: bool = False,               # True = 9 key thumb cluster false = 8 key
-        eleven_key_enabled: bool = False,               # True = 11 key thumb cluster false = 8 key
         twelve_key_enabled: bool = False               # True = 12 key thumb cluster false = 8 key
     ):
         self.use_color = use_color
@@ -56,7 +57,6 @@ class KeyboardAssembly:
         self.connector_mount_enabled = connector_mount_enabled
         self.magnet_mount_enabled = magnet_mount_enabled
         self.nine_key_enabled = nine_key_enabled
-        self.eleven_key_enabled = eleven_key_enabled
         self.twelve_key_enabled = twelve_key_enabled
 
         self.finger_layout = FingerWellLayout(
@@ -68,8 +68,6 @@ class KeyboardAssembly:
 
         if self.nine_key_enabled:
             self.thumb_layout = ThumbWellLayout9key(keyswitch=keyswitch)
-        elif self.eleven_key_enabled:
-            self.thumb_layout = ThumbWellLayout11key(keyswitch=keyswitch)
         elif self.twelve_key_enabled:
             self.thumb_layout = ThumbWellLayout12key(keyswitch=keyswitch)
         else:
@@ -240,32 +238,28 @@ class KeyboardAssembly:
             .translate(self.thumb_layout.placement_transform)
 
 
-    def thumb_mounting_holes(self):
-        """Place big cubes at intended hole positions for visual debugging."""
+def thumb_mounting_holes(self):
+    """Create 4 screw holes (Ø2 mm, depth 16 mm) at thumb web corners."""
+    from solid2 import cylinder_outer, union
 
+    hole_diameter = 2.0
+    hole_depth = 16.0
+    hole_shape = cylinder_outer(hole_diameter / 2, hole_depth, center=True)
 
-        hole_diameter = 2.0
-        hole_depth = 18.0
+    # Positions for holes
+    positions = [
+        self.thumb_layout.web_corner(2, 0, left=True, top=True),
+        self.thumb_layout.web_corner(2, -1, left=True, top=False),
+        self.thumb_layout.web_corner(1, -1, left=False, top=False),
+        self.thumb_layout.web_corner(1, 0, left=False, top=True),
+    ]
 
-        holes = union()()  # Start with an empty union
+    holes = union()()
+    for pos in positions:
+        # Place hole and shift downward so it drills into the part
+        holes += pos(hole_shape.down(hole_depth / 2))
 
-        # First hole
-        hole1 = cylinder_outer(hole_diameter / 2, hole_depth, center=True)
-        hole1 = hole1.rotate(-67, (1, 0, 0)).rotate(90, (0, 1, 0)).rotate(0, (0, 0, 1))
-        holes += self.thumb_layout.web_corner(2, 0, left=True, top=True)(
-            hole1.down(hole_depth / 2).translate(-11, 43, 52)
-        )
-
-        # Second hole
-        hole2 = cylinder_outer(hole_diameter / 2, hole_depth, center=True)
-        hole2 = hole2.rotate(-67, (1, 0, 0)).rotate(90, (0, 1, 0)).rotate(0, (0, 0, 1))
-        holes += self.thumb_layout.web_corner(1, 0, left=False, top=True)(
-            hole2.down(hole_depth / 2).translate(-3, 41, 52)
-        )
-
-
-        return holes
-
+    return holes
 
 
     def switch_socket(self, column, row) -> OpenSCADObject:
@@ -1210,5 +1204,4 @@ class KeyboardAssembly:
             )
             + self.thumb_part()
             - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
-            - self.thumb_mounting_holes()  # subtract screw holes here
         )

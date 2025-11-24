@@ -99,14 +99,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--elevenkey",
-    action="store_true",
-    dest="eleven_key_enabled",
-    default=False,
-    help="Enable 11-key thumb cluster (default: 8-key)",
-)
-
-parser.add_argument(
     "--twelvekey",
     action="store_true",
     dest="twelve_key_enabled",
@@ -120,7 +112,6 @@ args = parser.parse_args()
 
 nine_key_enabled = args.nine_key_enabled
 twelve_key_enabled = args.twelve_key_enabled
-eleven_key_enabled = args.eleven_key_enabled
 
 
 if nine_key_enabled:
@@ -129,19 +120,12 @@ if nine_key_enabled:
         1: {1: '3,5', 0: '4,5', -1: '5,5'},
         0: {1: '0,6', 0: '1,6', -1: '2,6'},
     }
-elif eleven_key_enabled:
-    thumb_matrix = {
-        2: {1: '3,5', 0: '4,5', -1: '5,5'},
-        1: {1: '6,5', 0: '7,5', -1: '8,5'}, 
-        0: {1: '0,6', 0: '1,6', -1: '2,6'},
-        -1: {0.5: '0,5', -1: '1,5'},
-    }
 elif twelve_key_enabled:
     thumb_matrix = {
+        3: {1: '0,5', 0: '1,5', -1: '2,5'},
         2: {1: '3,5', 0: '4,5', -1: '5,5'},
         1: {1: '6,5', 0: '7,5', -1: '8,5'}, 
         0: {1: '0,6', 0: '1,6', -1: '2,6'},
-        -1: {1: '0,5', 0: '1,5', -1: '2,5'},
     }
 else:
     thumb_matrix = {
@@ -198,31 +182,18 @@ if nine_key_enabled:
         1: {1: shift_legend, 0: delete_legend, -1: 'Fn'},
         0: {-1: 'A', 0: 'B', 1: 'C'},
     }
-elif eleven_key_enabled:
-    thumb_layout_right = {
-        2: {-1: command_legend, 0: 'Alt', 1: 'Ctrl'},
-        1: {-1: 'Fn', 0: enter_legend, 1: shift_legend},
-        0: {-1: 'A', 0: 'B', 1: 'C'},
-        -1: {-1: 'NOP', 0.5: ''},
-    }
-    thumb_layout_left = {
-        2: {1: 'Ctrl', 0: 'Alt', -1: command_legend},
-        1: {1: shift_legend, 0: delete_legend, -1: 'Fn'},
-        0: {-1: 'A', 0: 'B', 1: 'C'},
-        -1: {0.5: backspace_legend, -1: 'NOP'},
-    }
 elif twelve_key_enabled:
     thumb_layout_right = {
+        3: {-1: 'A', 0: 'B', 1: 'C'},
         2: {-1: command_legend, 0: 'Alt', 1: 'Ctrl'},
         1: {-1: 'Fn', 0: enter_legend, 1: shift_legend},
         0: {-1: 'A', 0: 'B', 1: 'C'},
-        -1: {-1: 'A', 0: 'B', 1: 'C'},
     }
     thumb_layout_left = {
+        3: {-1: 'A', 0: 'B', 1: 'C'},
         2: {1: 'Ctrl', 0: 'Alt', -1: command_legend},
         1: {1: shift_legend, 0: delete_legend, -1: 'Fn'},
         0: {-1: 'A', 0: 'B', 1: 'C'},
-        -1: {-1: 'A', 0: 'B', 1: 'C'}
     }
 else:
     thumb_layout_right = {
@@ -276,8 +247,8 @@ if __name__ == "__main__":
         HoleDef(-8, -8, 0.5),
     ]
 
-    #keyswitch_type: Keyswitch = MX()
-    keyswitch_type: Keyswitch = MX.with_board(board_dimensions, *board_screw_positions)
+    keyswitch_type: Keyswitch = MX()
+    #keyswitch_type: Keyswitch = MX.with_board(board_dimensions, *board_screw_positions)
     #keyswitch_type: Keyswitch = Choc()
     #keyswitch_type: Keyswitch = Choc.with_board(board_dimensions, *board_screw_positions)
 
@@ -300,7 +271,6 @@ if __name__ == "__main__":
         connector_mount_enabled=args.connector_mount_enabled,
         magnet_mount_enabled=args.magnet_mount_enabled,
         nine_key_enabled=args.nine_key_enabled,
-        eleven_key_enabled=args.eleven_key_enabled,
         twelve_key_enabled=args.twelve_key_enabled,
 
         # The default, if `socket_shape` is omitted: Basic sockets without a backplate; also use this if using
