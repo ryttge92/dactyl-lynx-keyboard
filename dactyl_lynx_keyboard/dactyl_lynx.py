@@ -404,6 +404,7 @@ if __name__ == "__main__":
         + assembly.finger_bottom_cover_feet()
     )
     right_thumb_part = assembly.thumb_part()
+    right_thumb_part_balljoint = assembly.thumb_part_balljoint()
     right_connector = assembly.connector()
     right_keycaps = (
         assembly.finger_layout.place_all(switch_cap(thumb=False))
@@ -418,6 +419,8 @@ if __name__ == "__main__":
         + assembly.thumb_layout.place_all(pcb_board)
     )
     right_single_piece = assembly.single_piece()
+    right_single_piece_FDM = assembly.single_piece_FDM()
+    right_finger_balljoint = assembly.finger_balljoint()
 
     # TODO: We probably shouldn't need to explicitly call .mirror((1, 0, 0)) here...
     # Maybe wrap the assembly methods to automatically do this?
@@ -438,6 +441,7 @@ if __name__ == "__main__":
         + assembly.finger_bottom_cover_feet().mirror((1, 0, 0))
     )
     left_thumb_part = assembly.thumb_part().mirror((1, 0, 0))
+    left_thumb_part_balljoint = assembly.thumb_part_balljoint().mirror((1, 0, 0))
     left_connector = assembly.connector().mirror((1, 0, 0))
     left_keycaps = (
         assembly.finger_layout.place_all(switch_cap(thumb=False))
@@ -452,6 +456,8 @@ if __name__ == "__main__":
         + assembly.thumb_layout.place_all(pcb_board)
     ).mirror((1, 0, 0))
     left_single_piece = assembly.single_piece().mirror((1, 0, 0))
+    left_single_piece_FDM = assembly.single_piece_FDM().mirror((1, 0, 0))
+    left_finger_balljoint = assembly.finger_balljoint().mirror((1, 0, 0))
 
     assembled_lcd_mount = (
         lcdMount.frame()
@@ -563,6 +569,10 @@ if __name__ == "__main__":
     print(f"Writing right thumb output to {right_thumb_filepath} . . .")
     right_thumb_part.save_as_scad(right_thumb_filepath)
 
+    right_thumb_balljoint_filepath = output_filepath("right-thumb-balljoint")
+    print(f"Writing right thumb output to {right_thumb_balljoint_filepath} . . .")
+    right_thumb_part_balljoint.save_as_scad(right_thumb_balljoint_filepath)
+
     right_connector_filepath = output_filepath("right-connector")
     print(f"Writing right connector output to {right_connector_filepath} . . .")
     right_connector.save_as_scad(right_connector_filepath)
@@ -570,6 +580,14 @@ if __name__ == "__main__":
     right_single_piece_filepath = output_filepath("right-single-piece")
     print(f"Writing right single_piece output to {right_single_piece_filepath} . . .")
     right_single_piece.save_as_scad(right_single_piece_filepath)
+
+    right_single_piece_FDM_filepath = output_filepath("right-single-piece-fdm")
+    print(f"Writing right single_piece output to {right_single_piece_FDM_filepath} . . .")
+    right_single_piece_FDM.save_as_scad(right_single_piece_FDM_filepath)
+
+    right_finger_balljoint_filepath = output_filepath("right-finger-balljoint")
+    print(f"Writing right single_piece output to {right_finger_balljoint_filepath} . . .")
+    right_finger_balljoint.save_as_scad(right_finger_balljoint_filepath)
 
     right_bottom_filepath = output_filepath("right-bottom")
     print(f"Writing right bottom output to {right_bottom_filepath} . . .")
@@ -599,6 +617,10 @@ if __name__ == "__main__":
     print(f"Writing left thumb output to {left_thumb_filepath} . . .")
     left_thumb_part.save_as_scad(left_thumb_filepath)
 
+    left_thumb_balljoint_filepath = output_filepath("left-thumb-balljoint")
+    print(f"Writing left thumb output to {left_thumb_balljoint_filepath} . . .")
+    left_thumb_part_balljoint.save_as_scad(left_thumb_balljoint_filepath)
+
     left_connector_filepath = output_filepath("left-connector")
     print(f"Writing left connector output to {left_connector_filepath} . . .")
     left_connector.save_as_scad(left_connector_filepath)
@@ -606,6 +628,14 @@ if __name__ == "__main__":
     left_single_piece_filepath = output_filepath("left-single-piece")
     print(f"Writing left single_piece output to {left_single_piece_filepath} . . .")
     left_single_piece.save_as_scad(left_single_piece_filepath)
+
+    left_single_piece_FDM_filepath = output_filepath("left-single-piece-fdm")
+    print(f"Writing left single_piece_FDM output to {left_single_piece_FDM_filepath} . . .")
+    left_single_piece_FDM.save_as_scad(left_single_piece_FDM_filepath)
+
+    left_finger_balljoint_filepath = output_filepath("left-finger-balljoint")
+    print(f"Writing left finger_balljoint output to {left_finger_balljoint_filepath} . . .")
+    left_finger_balljoint.save_as_scad(left_finger_balljoint_filepath)
 
     left_bottom_filepath = output_filepath("left-bottom")
     print(f"Writing left bottom output to {left_bottom_filepath} . . .")

@@ -2,7 +2,8 @@ from collections.abc import Iterable
 from itertools import chain, pairwise
 from typing import Tuple, Optional
 
-from solid2 import cube, hull, sphere, union
+#from solid2 import cube, hull, sphere, union
+from solid2 import *
 from solid2.core.object_base import OpenSCADObject
 from solid2.extensions.bosl2 import screws
 
@@ -22,6 +23,7 @@ from .layouts.finger_well import FingerWellLayout
 from .layouts.thumb_well import ThumbWellLayout, ThumbWellLayout9key, ThumbWellLayout11key, ThumbWellLayout12key
 from .mini_din_connector_mount import MiniDINConnectorMount
 from .trackpoint_mount import TrackPointMount
+
 
 # Custom board mount
 
@@ -241,32 +243,186 @@ class KeyboardAssembly:
 
 
     def thumb_mounting_holes(self):
-        """Place big cubes at intended hole positions for visual debugging."""
-
-
+        """Place holes for screwing the thumbcluster to the main body, can be separated in the slicer then screwed together for easier printing
+        
+        """
         hole_diameter = 2.0
         hole_depth = 18.0
 
         holes = union()()  # Start with an empty union
 
         # First hole
-        hole1 = cylinder_outer(hole_diameter / 2, hole_depth, center=True)
-        hole1 = hole1.rotate(-67, (1, 0, 0)).rotate(90, (0, 1, 0)).rotate(0, (0, 0, 1))
-        holes += self.thumb_layout.web_corner(2, 0, left=True, top=True)(
-            hole1.down(hole_depth / 2).translate(-11, 43, 52)
-        )
+        hole1 = cylinder_outer(hole_diameter / 2, hole_depth, center=True) \
+            .rotate(-67, (1, 0, 0)) \
+            .rotate(110, (0, 1, 0)) \
+            .rotate(0, (0, 0, 1)) \
+            .down(hole_depth / 2) \
+            .translate(-11, 43, 51.5)
+
+        holes += self.thumb_layout.web_corner(2, 0, left=True, top=True)(hole1)
 
         # Second hole
-        hole2 = cylinder_outer(hole_diameter / 2, hole_depth, center=True)
-        hole2 = hole2.rotate(-67, (1, 0, 0)).rotate(90, (0, 1, 0)).rotate(0, (0, 0, 1))
-        holes += self.thumb_layout.web_corner(1, 0, left=False, top=True)(
-            hole2.down(hole_depth / 2).translate(-3, 41, 52)
-        )
+        hole2 = cylinder_outer(hole_diameter / 2, hole_depth, center=True) \
+            .rotate(-67, (1, 0, 0)) \
+            .rotate(110, (0, 1, 0)) \
+            .rotate(0, (0, 0, 1)) \
+            .down(hole_depth / 2) \
+            .translate(-3, 41, 51.5)
 
+        holes += self.thumb_layout.web_corner(1, 0, left=False, top=True)(hole2)
 
         return holes
 
+    def thumb_mount_separator(self):
 
+        separator_cube = cube([25, 0.1, 9], center=True) \
+            .rotate(-14.5, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(-60, -37.88, 50)
+
+        return separator_cube
+    
+    #balljoint v1
+    def balljoint_ball(self):
+
+        
+        ball_dia = 15          # diameter of the ball
+        ball = sphere(ball_dia / 2)
+
+        return ball
+    
+    def transform_balljoint_ball(self, geom):
+        return (
+            geom
+            .translate(-57, -26, 50)
+        )
+    
+    def balljoint_ball_anchor(self):
+        """
+        A thin disk anchored on the socket's flat mouth (threaded side).
+        Uses the same geometry params as balljoint_socket().
+        """
+        ball_dia = 9
+
+
+        outer_r = (ball_dia / 2)
+
+        anchor_d = outer_r * 2 
+        anchor_h = 0.8                 # thin
+
+        disk = cylinder(h=anchor_h, d=anchor_d, center=True)\
+            .rotate(11, (1, 0, 0)) \
+            .rotate(90, (0, 1, 0)) \
+            .rotate(90, (0, 0, 1)) \
+            .translate(-1, -6, 0)
+            
+        return disk
+    
+    def balljoint_socket(self):
+        ball_dia = 15
+        socket_clearance = +0.1
+        socket_thickness = 1.5
+
+        outer_r = (ball_dia / 2) + socket_clearance + socket_thickness
+        inner_r = (ball_dia / 2) + socket_clearance
+
+        # Outer shell 
+        shell_height = outer_r * 2  # full height of socket
+        socket_outer = cylinder(h=shell_height, d=outer_r * 2, center=True)
+
+        # Inner spherical cavity for the ball
+        socket_inner = sphere(inner_r)
+
+        # Hollow shell: cylinder minus sphere
+        socket_shell = difference()(socket_outer, socket_inner)
+
+        # Remove top portion
+        cut_height = shell_height
+        top_cut = cube([outer_r * 2, outer_r * 2, cut_height], center=False).translate(-outer_r, -outer_r, 4)
+
+        socket = difference()(socket_shell, top_cut)
+
+        socket_screw1 = cube([10, 7, 13.5], center=True) \
+            .rotate(0, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-101, (0, 0, 1)) \
+            .translate(10.5, -2, -2.8)
+        
+        socket += socket_screw1()
+
+        socket_screw2 = cube([10, 7, 13.5], center=True) \
+            .rotate(0, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-101, (0, 0, 1)) \
+            .translate(-10.5, 2, -2.8)
+        
+        socket += socket_screw2()
+
+        socket_hole1 = cylinder_outer(3 / 2, 20, center=True) \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(10.5, 0, -2.8)
+        socket -= socket_hole1()
+
+        socket_hole2 = cylinder_outer(3 / 2, 20, center=True) \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(-10.5, 0, -2.8)
+        socket -= socket_hole2()
+
+        socket_slit= cube([2, 40, 40], center=True) \
+            .rotate(0, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-101, (0, 0, 1)) \
+            .translate(0, 0, -10)
+        
+        socket -= socket_slit()
+
+        return socket
+
+        
+    
+    def balljoint_socket_slit(self):
+        """ 
+        Does not remove web geometry if not called on it's own, does the same thing as the socket_slit above, man i suck at this
+        """
+
+        slit= cube([2, 40, 10], center=True) \
+            .rotate(0, (1, 0, 0)) \
+            .rotate(0, (0, 1, 0)) \
+            .rotate(-101, (0, 0, 1)) \
+            .translate(0, 0, -10)
+        
+        return slit
+
+    
+    def balljoint_socket_anchor(self):
+        """
+        A thin disk anchored on the socket's flat mouth (threaded side).
+        Uses the same geometry params as balljoint_socket().
+        """
+        ball_dia = 15
+        socket_clearance = 0.1
+        socket_thickness = 1.5
+
+        outer_r = (ball_dia / 2) + socket_clearance + socket_thickness 
+
+        anchor_d = outer_r * 2 
+        anchor_h = 0.8                 # thin
+
+        disk = cylinder(h=anchor_h, d=anchor_d, center=True)
+        return translate(0, 0, -9)(disk)
+    
+    def transform_balljoint_socket(self, geom):
+        return (
+            geom
+            .rotate(90, (1, 0, 0))
+            .rotate(90, (0, 1, 0))
+            .translate(-57, -26, 52)
+        )
 
     def switch_socket(self, column, row) -> OpenSCADObject:
         """Generate the switch plate socket for the given keyswitch.
@@ -501,7 +657,7 @@ class KeyboardAssembly:
                 .up(self.bottom_cover_magnet_thickness)
             )
         else:
-            shape = cylinder_outer(radius, self.bottom_cover_magnet_thickness * 2, center=True).up(self.bottom_cover_magnet_thickness ) #/ 2)
+            shape = cylinder_outer(radius, self.bottom_cover_magnet_thickness * 2, center=True).up(self.bottom_cover_magnet_thickness )
 
         if not top_shell:
             return shape.mirror((0, 0, 1))
@@ -565,8 +721,9 @@ class KeyboardAssembly:
                 ).down(self.bottom_cover_magnet_thickness - end_groove_height / 2)
             )
         else:
-            clearance_radius = 2.7 / 2  # M2.5 screw clearance
+            clearance_radius = 3.2 / 2  # M3 screw clearance
             hole_depth = self.bottom_cover_magnet_thickness * 6  # Full depth through both parts
+            radius = self.bottom_cover_magnet_radius + self.bottom_cover_magnet_mount_thickness
 
             hole = cylinder_outer(
             clearance_radius,
@@ -574,7 +731,14 @@ class KeyboardAssembly:
             center=True
             ).up(self.bottom_cover_magnet_thickness  / 2)
 
-            return hole
+            if top_shell:
+                clearance = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_magnet_thickness + 8)
+                clearance_under = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_magnet_thickness -8)  
+                hole += clearance + clearance_under   
+
+            return hole 
+
+
 
     def place_cover_magnets(self, shape):
         """Place the given shape at the location of each cover attachment magnet.
@@ -1133,9 +1297,64 @@ class KeyboardAssembly:
 
                 ) if self.enable_nuts and self.bottom_thumb_nuts else nothing
             )
-
-            - self.thumb_layout.place_all(single_key_board(simple=True, extra_spacing=0.02))
         )
+        
+        if self.use_color:
+            return shape.color((0.1, 0.1, 0.1))
+
+        return shape
+    
+    def thumb_part_balljoint(self):
+        """Generate the thumb part of the assembly.
+
+        This includes the thumb well and the thumb nuts.
+        """
+        shape = (
+            self.thumb_layout.place_all(self.switch_socket)
+            + self.thumb_layout.web_all()
+
+            + (
+                (
+                    #self.transform_thumb_nut1(self.tenting_nut)
+                    #+ hull()(
+                    #    self.transform_thumb_nut1(
+                    #        cube((10, 0.1, 10), center=True)
+                    #        .translate((0, 5, 0))
+                    #    ),
+                    #    self.thumb_layout.web_corner(0, 1, left=True, top=False),
+                    #    self.thumb_layout.web_corner(0, 1, left=True, top=True),
+                    #)
+                    #+ hull()(
+                    #    self.transform_thumb_nut1(
+                    #        cube((0.1, 10, 10), center=True)
+                    #        .translate((5, 0, 0))
+                    #    ),
+                    #    self.thumb_layout.web_corner(0, 1, left=False, top=False),
+                    #    self.thumb_layout.web_corner(0, 1, left=True, top=False),
+                    #)
+
+                      self.transform_thumb_nut2(self.tenting_nut)
+                     + hull()(
+                         self.transform_thumb_nut2(
+                             cube((10, 0.1, 10), center=True)
+                             .translate((0, -5, 0))
+                         ),
+                         self.thumb_layout.web_corner(0, -1, left=True, top=True,),
+                         self.thumb_layout.web_corner(0, -1, left=False, top=True,),
+                     )
+                    + hull()(
+                        self.transform_balljoint_ball(self.balljoint_ball_anchor()),
+                        self.thumb_layout.web_corner(2, 0, left=True, top=True),
+                        self.thumb_layout.web_corner(2, -1, left=True, top=True),
+                     )
+
+                ) if self.enable_nuts and self.bottom_thumb_nuts else nothing
+            )
+
+            #- self.thumb_layout.place_all(single_key_board(simple=True, extra_spacing=0.02))
+            + self.transform_balljoint_ball(self.balljoint_ball())
+        )
+        
 
         if self.use_color:
             return shape.color((0.1, 0.1, 0.1))
@@ -1163,7 +1382,7 @@ class KeyboardAssembly:
                 ),
             )
         )
-
+    
     def single_piece(self):
         """Generate the single-piece upper assembly.
 
@@ -1210,5 +1429,74 @@ class KeyboardAssembly:
             )
             + self.thumb_part()
             - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
-            - self.thumb_mounting_holes()  # subtract screw holes here
+        )
+
+
+    def finger_balljoint(self):
+        """Generate the single-piece upper assembly.
+
+        This includes the finger part (finger well, board mount, and Mini-DIN connector mount) and thumb part (thumb
+        well and thumb nuts), as well as mounts for magnets to attach the bottom cover.
+        """
+        return (
+            self.finger_part()
+            + hull()(
+                self.transform_balljoint_socket(self.balljoint_socket_anchor()),
+                self.finger_layout.web_corner(0, 2, left=True, top=True),
+                self.finger_layout.web_corner(0, 3, left=True, top=True),
+                self.cover_edge_corner(side=True, column=0, row=2, left=True, top=True, top_shell=True, outer=True),
+            )
+            + self.transform_balljoint_socket(self.balljoint_socket())
+            - self.place_cover_magnets(self.cover_magnet_hole(top_shell=True))
+            - self.transform_balljoint_socket(self.balljoint_socket_slit())
+        )
+    
+    def single_piece_FDM(self):
+        """Generate the single-piece upper assembly.
+
+        This includes the finger part (finger well, board mount, and Mini-DIN connector mount) and thumb part (thumb
+        well and thumb nuts), as well as mounts for magnets to attach the bottom cover.
+        """
+        return (
+            self.finger_part()
+            + hull()(
+                self.finger_layout.web_corner(0, 2, left=True, top=False),
+                self.finger_layout.web_corner(0, 3, left=True, top=True),
+                self.thumb_layout.web_corner(2, -1, left=True, top=True),
+                self.thumb_layout.web_corner(2, -1, left=True, top=False),
+                self.thumb_layout.web_corner(1, -1, left=False, top=False),
+                self.thumb_layout.web_corner(1, -1, left=False, top=True),
+            )
+            + hull()(
+                self.finger_layout.web_corner(0, 3, left=True, top=True),
+                self.finger_layout.key_place(
+                    column=0,
+                    row=3,
+                    shape=cube(
+                        (self.finger_layout.web_post_size, self.finger_layout.web_post_size, self.finger_layout.web_thickness),
+                        center=True
+                    ).translate((
+                        -(
+                            (self.finger_layout.keyswitch.keyswitch_width - self.finger_layout.web_post_size) / 2
+                            + self.wall_thickness
+                        ),
+                        0,
+                        -self.finger_layout.web_thickness / 2,
+                    ))
+                ),
+                self.thumb_layout.web_corner(2, 0, left=True, top=True),
+                self.thumb_layout.web_corner(2, -1, left=True, top=False),
+                self.thumb_layout.web_corner(1, -1, left=False, top=False),
+                self.thumb_layout.web_corner(1, 0, left=False, top=True),
+            )
+            + hull()(
+                self.finger_layout.web_corner(0, 2, left=True, top=False),
+                self.cover_edge_corner(side=True, column=0, row=2, left=True, top=True, top_shell=True, outer=True),
+                self.thumb_layout.web_corner(2, -1, left=True, top=True),
+                self.thumb_layout.web_corner(1, -1, left=False, top=True),
+            )
+            + self.thumb_part()
+            - self.place_cover_magnets(self.cover_magnet_hole(top_shell=False))
+            - self.thumb_mounting_holes() 
+            - self.thumb_mount_separator()
         )
