@@ -23,6 +23,7 @@ from .layouts.finger_well import FingerWellLayout
 from .layouts.thumb_well import ThumbWellLayout, ThumbWellLayout9key, ThumbWellLayout11key, ThumbWellLayout12key
 from .mini_din_connector_mount import MiniDINConnectorMount
 from .trackpoint_mount import TrackPointMount
+import math
 
 
 # Custom board mount
@@ -50,7 +51,8 @@ class KeyboardAssembly:
         magnet_mount_enabled: bool = True,      # True = magnets, False = holes
         nine_key_enabled: bool = False,               # True = 9 key thumb cluster false = 8 key
         eleven_key_enabled: bool = False,               # True = 11 key thumb cluster false = 8 key
-        twelve_key_enabled: bool = False               # True = 12 key thumb cluster false = 8 key
+        twelve_key_enabled: bool = False,               # True = 12 key thumb cluster false = 8 key
+        pcb_clearance_cutout: bool = False              # True adds a PCB cutout, standard if you dont define socket_shape
     ):
         self.use_color = use_color
         self.socket_shape = socket_shape
@@ -60,6 +62,7 @@ class KeyboardAssembly:
         self.nine_key_enabled = nine_key_enabled
         self.eleven_key_enabled = eleven_key_enabled
         self.twelve_key_enabled = twelve_key_enabled
+        self.pcb_clearance_cutout = pcb_clearance_cutout
 
         self.finger_layout = FingerWellLayout(
             columns=columns,
@@ -79,6 +82,7 @@ class KeyboardAssembly:
 
         if socket_shape is None:
             self.socket_shape = lambda _column, _row: self.finger_layout.keyswitch.plate()
+            self.pcb_clearance_cutout = True
 
         self.connector_mount = MiniDINConnectorMount()
         self.trackpoint_mount = TrackPointMount()
@@ -321,7 +325,7 @@ class KeyboardAssembly:
     
     def balljoint_socket(self):
         ball_dia = 15
-        socket_clearance = +0.1
+        socket_clearance = 0.1
         socket_thickness = 1.5
 
         outer_r = (ball_dia / 2) + socket_clearance + socket_thickness
@@ -381,10 +385,52 @@ class KeyboardAssembly:
         
         socket -= socket_slit()
 
+        # Nut geometry
+        m3_af = 5.5            # across-flats for standard M3 nut (mm)
+        m3_thickness = 2.4     # nut height/thickness (mm)
+        fit_allowance = 0.2    # tweak for printer/material (0.1–0.3 typical)
+        nut_depth = m3_thickness + 0.2
+
+        # Hex prism radius (circumradius for segments=6)
+        nut_circumradius = (m3_af + fit_allowance) / math.sqrt(3)
+
+        # Chamfer geometry at pocket mouth
+        chamfer_h = 0.3
+        chamfer_w = 0.25
+
+        # Base shapes
+        base_hex = cylinder_outer(nut_circumradius, nut_depth, segments=6, center=True)
+        base_chamfer = cylinder_outer([nut_circumradius + chamfer_w, nut_circumradius],
+                                    chamfer_h, segments=6, center=True)
+
+        nut1 = base_hex \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(30.5, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(11.05, 2.0, -2.8) 
+
+        chamfer1 = base_chamfer \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(31, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(11.25, 2.9, -2.8) 
+
+        nut2 = base_hex \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(30, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(-9.35, 5.8, -2.8) 
+
+        chamfer2 = base_chamfer \
+            .rotate(90, (1, 0, 0)) \
+            .rotate(30, (0, 1, 0)) \
+            .rotate(-11, (0, 0, 1)) \
+            .translate(-9.15, 6.7, -2.8)
+
+        socket -= nut1() + chamfer1() + nut2() + chamfer2()
+
         return socket
 
-        
-    
     def balljoint_socket_slit(self):
         """ 
         Does not remove web geometry if not called on it's own, does the same thing as the socket_slit above, man i suck at this
@@ -598,7 +644,6 @@ class KeyboardAssembly:
                 )
             )
 
-
         if self.connector_mount_enabled:
             shape += hull() (
                 self.transform_connector_mount(self.connector_mount.frame()),
@@ -625,7 +670,8 @@ class KeyboardAssembly:
             shape += self.transform_trackpoint_mount(self.trackpoint_mount.trackpoint_mount())
             shape -= self.transform_trackpoint_mount(self.trackpoint_mount.trackpoint_holes())
 
-        shape -= self.finger_layout.place_all(single_key_board(simple=True, extra_spacing=0.02))
+        if self.pcb_clearance_cutout:  
+            shape -= self.finger_layout.place_all(single_key_board(simple=True, extra_spacing=0.02))
 
         if self.use_color:
             return shape.color((0.1, 0.1, 0.1))
@@ -722,23 +768,56 @@ class KeyboardAssembly:
             )
         else:
             clearance_radius = 3.2 / 2  # M3 screw clearance
-            hole_depth = self.bottom_cover_magnet_thickness * 6  # Full depth through both parts
+            hole_depth = self.bottom_cover_thickness * 6  # Full depth through both parts
             radius = self.bottom_cover_magnet_radius + self.bottom_cover_magnet_mount_thickness
 
             hole = cylinder_outer(
             clearance_radius,
             hole_depth,
             center=True
-            ).up(self.bottom_cover_magnet_thickness  / 2)
+            ).up(self.bottom_cover_thickness  / 2)
+
+            if not top_shell: 
+                # === M3 captive nut pocket === 
+                m3_af = 5.5                 # across-flats for standard M3 nut (mm)
+                m3_thickness = 2.4          # nut height/thickness (mm)
+                fit_allowance = 0.2         # tweak for your printer/material (0.1–0.3 typical)
+
+                # For a hex made with cylinder_outer(..., segments=6), the 'radius' is the circumradius
+                # circumradius R = AF / (2*cos(30°)) = (AF) / sqrt(3). Add a small fit allowance.
+                nut_circumradius = (m3_af + fit_allowance) / math.sqrt(3)
+
+                # Depth: slightly more than the nut thickness for an easy press-fit
+                nut_depth = m3_thickness + 0.2
+
+                # Build the hex pocket, centered on the hole axis. Position so the pocket opens upward.
+                # Adjust the vertical placement to where you need the nut to seat relative to the shell.
+                nut = cylinder_outer(
+                    nut_circumradius,
+                    nut_depth,
+                    segments=6,
+                    center=True
+                ).down (self.bottom_cover_thickness * 2  - nut_depth / 2)
+
+                # Small chamfer/lip to ease insertion (uses two 6-sided frustums)
+                chamfer_h = 0.3
+                chamfer_w = 0.25  # radial increment for chamfer
+                nut_chamfer_top = cylinder_outer(
+                    [nut_circumradius + chamfer_w, nut_circumradius],
+                    chamfer_h,
+                    segments=6,
+                    center=True
+               ).down(self.bottom_cover_thickness * 2 - chamfer_h / 2)
+                
+                # Add the nut pocket (and optional chamfer) to the main hole
+                hole += nut + nut_chamfer_top
 
             if top_shell:
-                clearance = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_magnet_thickness + 8)
-                clearance_under = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_magnet_thickness -8)  
+                clearance = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_thickness + 8)
+                clearance_under = cylinder_outer(radius, 10, center=True).up(self.bottom_cover_thickness -8)  
                 hole += clearance + clearance_under   
 
             return hole 
-
-
 
     def place_cover_magnets(self, shape):
         """Place the given shape at the location of each cover attachment magnet.
@@ -1344,6 +1423,8 @@ class KeyboardAssembly:
                      )
                     + hull()(
                         self.transform_balljoint_ball(self.balljoint_ball_anchor()),
+                        self.thumb_layout.web_corner(1, 0, left=False, top=True),
+                        self.thumb_layout.web_corner(1, -1, left=False, top=True),
                         self.thumb_layout.web_corner(2, 0, left=True, top=True),
                         self.thumb_layout.web_corner(2, -1, left=True, top=True),
                      )

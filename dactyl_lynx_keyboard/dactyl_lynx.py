@@ -3,7 +3,7 @@ import argparse
 from os.path import abspath, dirname, join
 from typing import List, Optional, Tuple
 
-from solid2 import cube, sphere, text
+from solid2 import cube, sphere, text, translate
 
 from spkb.keyswitch import Keyswitch, MX, Choc
 from spkb.keycaps import sa_cap
@@ -307,10 +307,12 @@ if __name__ == "__main__":
         # single-key PCBs.
         #socket_shape=lambda column, row: keyswitch_type.plate(),
 
-        # Sockets with a backplate supporting a hotswap socket, 5-pin switches, and a 2-pin or 4-pin LED.
-        # This function is broken, it places the backplate in the middle of the keyswitch hole with 2mm clearance instead of 5.08
-        # Need to thicken the thumbcluster to fix. 
-        #socket_shape=lambda column, row: keyswitch_type.plate_with_backplate(),
+        # Sockets with a backplate supporting a hotswap socket, 5-pin switches, and a 2-pin or 4-pin LED.        
+        socket_shape = lambda column, row: (
+            translate([0, 0, 0])(keyswitch_type.plate())
+            + translate([0, 0, -3])(keyswitch_type.mx_backplate()) # move plate down 3 mm
+        )
+
 
         # To use a switch plate with engraved layout positions (for troubleshooting):
         #socket_shape=tagged_switch_plate,
