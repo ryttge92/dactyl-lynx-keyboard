@@ -29,13 +29,15 @@ include <C:\Users\ryttge.RYTTGE\AppData\Local\pypoetry\Cache\virtualenvs\dactyl-
 include <C:\Users\ryttge.RYTTGE\AppData\Local\pypoetry\Cache\virtualenvs\dactyl-lynx-keyboard-9fv8N7OY-py3.13\Lib\site-packages\solid2\extensions\bosl2\BOSL2\screws.scad>;
 
 union() {
-	translate(v = [-57, 16, 49]) {
-		rotate(a = 9, v = [1, 0, 0]) {
-			rotate(a = 15, v = [0, 1, 0]) {
-				translate(v = [0, 0, -10]) {
-					difference() {
-						cube(center = true, size = [10, 10, 10]);
-						screw_hole($fn = 32, bevel = true, blunt_start = true, length = 10.01, spec = "M6x1", thread = false);
+	translate(v = [-60, 16, 50]) {
+		rotate(a = -5, v = [0, 0, 1]) {
+			rotate(a = 30, v = [1, 0, 0]) {
+				rotate(a = 20, v = [0, 1, 0]) {
+					translate(v = [0, 0, -10]) {
+						difference() {
+							cube(center = true, size = [10, 10, 10]);
+							screw_hole($fn = 32, bevel = true, blunt_start = true, length = 10.01, spec = "M6x1", thread = false);
+						}
 					}
 				}
 			}
@@ -60,11 +62,13 @@ union() {
 		}
 	}
 	hull() {
-		translate(v = [-57, 16, 49]) {
-			rotate(a = 9, v = [1, 0, 0]) {
-				rotate(a = 15, v = [0, 1, 0]) {
-					translate(v = [0, -5, -10]) {
-						cube(center = true, size = [10, 0.1, 10]);
+		translate(v = [-60, 16, 50]) {
+			rotate(a = -5, v = [0, 0, 1]) {
+				rotate(a = 30, v = [1, 0, 0]) {
+					rotate(a = 20, v = [0, 1, 0]) {
+						translate(v = [0, -5, -10]) {
+							cube(center = true, size = [10, 0.1, 10]);
+						}
 					}
 				}
 			}

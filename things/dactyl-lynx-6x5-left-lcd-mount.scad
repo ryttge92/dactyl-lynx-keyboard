@@ -98,11 +98,13 @@ union() {
 		}
 		translate(v = [-100, 0, 0]) {
 			mirror(v = [1, 0, 0]) {
-				translate(v = [-57, 16, 49]) {
-					rotate(a = 9, v = [1, 0, 0]) {
-						rotate(a = 15, v = [0, 1, 0]) {
-							translate(v = [0, 5, -10]) {
-								cube(center = true, size = [10, 0.1, 9]);
+				translate(v = [-60, 16, 50]) {
+					rotate(a = -5, v = [0, 0, 1]) {
+						rotate(a = 30, v = [1, 0, 0]) {
+							rotate(a = 20, v = [0, 1, 0]) {
+								translate(v = [0, 5, -10]) {
+									cube(center = true, size = [10, 0.1, 9]);
+								}
 							}
 						}
 					}
@@ -112,13 +114,15 @@ union() {
 	}
 	translate(v = [-100, 0, 0]) {
 		mirror(v = [1, 0, 0]) {
-			translate(v = [-57, 16, 49]) {
-				rotate(a = 9, v = [1, 0, 0]) {
-					rotate(a = 15, v = [0, 1, 0]) {
-						translate(v = [0, 0, -10]) {
-							difference() {
-								cube(center = true, size = [10, 10, 10]);
-								screw_hole($fn = 32, bevel = true, blunt_start = true, length = 10.01, spec = "M6x1", thread = false);
+			translate(v = [-60, 16, 50]) {
+				rotate(a = -5, v = [0, 0, 1]) {
+					rotate(a = 30, v = [1, 0, 0]) {
+						rotate(a = 20, v = [0, 1, 0]) {
+							translate(v = [0, 0, -10]) {
+								difference() {
+									cube(center = true, size = [10, 10, 10]);
+									screw_hole($fn = 32, bevel = true, blunt_start = true, length = 10.01, spec = "M6x1", thread = false);
+								}
 							}
 						}
 					}
